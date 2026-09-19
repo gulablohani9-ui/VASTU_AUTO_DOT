@@ -43,7 +43,7 @@ class ChakraImage {
   final Uint8List bytes;
 }
 
-enum BoundaryMode { move, delete }
+enum BoundaryMode { add, move, delete }
 
 class ChakraTransform {
   ChakraTransform({
@@ -76,7 +76,7 @@ class _HomePageState extends State<HomePage> {
   final List<ChakraTransform> transforms = <ChakraTransform>[];
   File? plot;
   String? folderName;
-  BoundaryMode boundaryMode = BoundaryMode.move;
+  BoundaryMode boundaryMode = BoundaryMode.add;
   int selectedPoint = -1;
   bool loadingChakras = false;
   double plotDegree = 0;
@@ -109,7 +109,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       plot = File(x.path);
       selectedPoint = -1;
-      boundaryMode = BoundaryMode.move;
+      boundaryMode = BoundaryMode.add;
       _setAutomaticCornerPoints();
       for (final ChakraTransform t in transforms) {
         t.center = const Offset(.5, .5);
@@ -118,12 +118,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _setAutomaticCornerPoints() {
-    points
-      ..clear()
-      ..add(BoundaryPoint(const Offset(.10, .10)))
-      ..add(BoundaryPoint(const Offset(.90, .10)))
-      ..add(BoundaryPoint(const Offset(.90, .90)))
-      ..add(BoundaryPoint(const Offset(.10, .90)));
+    points.clear();
     selectedPoint = -1;
   }
 
@@ -326,6 +321,12 @@ class _HomePageState extends State<HomePage> {
               onSelect: (int i) => setState(() => selectedPoint = i),
               onMove: updatePoint,
               onDelete: deletePoint,
+              onAdd: (Offset newPoint) {
+                setState(() {
+                  points.add(BoundaryPoint(newPoint));
+                  selectedPoint = points.length - 1;
+                });
+              },
             ),
           const SizedBox(height: 12),
           Row(
@@ -333,7 +334,8 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: SegmentedButton<BoundaryMode>(
                   segments: const <ButtonSegment<BoundaryMode>>[
-                    ButtonSegment(value: BoundaryMode.move, label: Text('EDIT / MOVE'), icon: Icon(Icons.open_with)),
+                    ButtonSegment(value: BoundaryMode.add, label: Text('ADD'), icon: Icon(Icons.add_location_alt)),
+                    ButtonSegment(value: BoundaryMode.move, label: Text('MOVE'), icon: Icon(Icons.open_with)),
                     ButtonSegment(value: BoundaryMode.delete, label: Text('DELETE'), icon: Icon(Icons.delete_outline)),
                   ],
                   selected: <BoundaryMode>{boundaryMode},
@@ -342,14 +344,14 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(width: 8),
               IconButton.filledTonal(
-                tooltip: 'Automatic corner points',
+                tooltip: 'Clear dots',
                 onPressed: plot == null ? null : () => setState(_setAutomaticCornerPoints),
-                icon: const Icon(Icons.auto_fix_high),
+                icon: const Icon(Icons.cleaning_services),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          const Text('Photo लगाते ही 4 starting corner points आते हैं। आप सिर्फ MOVE/EDIT या DELETE करें।', style: TextStyle(fontSize: 12)),
+          const Text('ADD mode में photo पर tap करके dot लगाएँ। गलत लगे तो MOVE/EDIT या DELETE करें।', style: TextStyle(fontSize: 12)),
           const SizedBox(height: 8),
           Row(children: <Widget>[
             Expanded(child: OutlinedButton.icon(onPressed: points.isEmpty ? null : () => setState(() { points.clear(); selectedPoint = -1; }), icon: const Icon(Icons.clear_all), label: const Text('Clear All'))),
@@ -549,6 +551,7 @@ class PlotEditor extends StatelessWidget {
     required this.onSelect,
     required this.onMove,
     required this.onDelete,
+    required this.onAdd,
   });
   final File image;
   final List<BoundaryPoint> points;
@@ -557,6 +560,7 @@ class PlotEditor extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final void Function(int, Offset) onMove;
   final ValueChanged<int> onDelete;
+  final ValueChanged<Offset> onAdd;
 
   Offset norm(Offset p, Size s) => Offset(
         (p.dx / s.width).clamp(0.0, 1.0),
@@ -580,13 +584,19 @@ class PlotEditor extends StatelessWidget {
                 ),
                 child: Row(
                   children: <Widget>[
-                    Icon(mode == BoundaryMode.move ? Icons.open_with : Icons.delete_outline),
+                    Icon(mode == BoundaryMode.add
+                        ? Icons.add_location_alt
+                        : mode == BoundaryMode.move
+                            ? Icons.open_with
+                            : Icons.delete_outline),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        mode == BoundaryMode.move
-                            ? 'Automatic corners को finger से पकड़कर सही जगह move करें'
-                            : 'जिस dot को हटाना है उसे tap करें',
+                        mode == BoundaryMode.add
+                            ? 'Photo पर tap करके नए dots लगाएँ'
+                            : mode == BoundaryMode.move
+                                ? 'Dots को finger से पकड़कर सही जगह move करें'
+                                : 'जिस dot को हटाना है उसे tap करें',
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -602,49 +612,55 @@ class PlotEditor extends StatelessWidget {
                   border: Border.all(color: Theme.of(context).colorScheme.outline, width: 1.5),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    Image.file(image, fit: BoxFit.contain, alignment: Alignment.center),
-                    IgnorePointer(child: CustomPaint(painter: BoundaryPainter(points))),
-                    for (int i = 0; i < points.length; i++)
-                      Positioned(
-                        left: points[i].position.dx * width - 19,
-                        top: points[i].position.dy * height - 19,
-                        width: 38,
-                        height: 38,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            onSelect(i);
-                            if (mode == BoundaryMode.delete) onDelete(i);
-                          },
-                          onPanStart: (_) => onSelect(i),
-                          onPanUpdate: (DragUpdateDetails d) {
-                            if (mode == BoundaryMode.move) {
-                              final Offset old = points[i].position;
-                              onMove(i, norm(Offset(old.dx * width + d.delta.dx, old.dy * height + d.delta.dy), size));
-                            }
-                          },
-                          child: Container(
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: selectedIndex == i ? Colors.orange : Colors.red,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2.5),
-                              boxShadow: const <BoxShadow>[
-                                BoxShadow(blurRadius: 4, offset: Offset(0, 2), color: Colors.black26),
-                              ],
-                            ),
-                            child: Text(
-                              '${i + 1}',
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                child: GestureDetector(
+                  onTapUp: (TapUpDetails details) {
+                    if (mode == BoundaryMode.add) {
+                      onAdd(norm(details.localPosition, size));
+                    }
+                  },
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      Image.file(image, fit: BoxFit.contain, alignment: Alignment.center),
+                      IgnorePointer(child: CustomPaint(painter: BoundaryPainter(points))),
+                      for (int i = 0; i < points.length; i++)
+                        Positioned(
+                          left: points[i].position.dx * width - 19,
+                          top: points[i].position.dy * height - 19,
+                          width: 38,
+                          height: 38,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              onSelect(i);
+                              if (mode == BoundaryMode.delete) onDelete(i);
+                            },
+                            onPanStart: (_) => onSelect(i),
+                            onPanUpdate: (DragUpdateDetails d) {
+                              if (mode == BoundaryMode.move) {
+                                final Offset old = points[i].position;
+                                onMove(i, norm(Offset(old.dx * width + d.delta.dx, old.dy * height + d.delta.dy), size));
+                              }
+                            },
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: selectedIndex == i ? Colors.orange : Colors.red,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: const <BoxShadow>[
+                                  BoxShadow(blurRadius: 4, offset: Offset(0, 2), color: Colors.black26),
+                                ],
+                              ),
+                              child: Text(
+                                '${i + 1}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
