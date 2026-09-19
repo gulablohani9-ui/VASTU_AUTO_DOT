@@ -1,18 +1,19 @@
-# Vastu Plot + Chakra — Professional V8
+# Vastu Plot Chakra — Irregular Plot Edition
 
-## Plot workflow
-1. Customer
-2. Plot
-3. Settings
-4. Chakras
-5. PDF Preview
+Features:
+- Upload plot photo.
+- Draw an irregular polygon with unlimited points.
+- Add points by tapping; move points by dragging.
+- Undo and delete the last point.
+- Close/reopen the polygon boundary.
+- Select a CHKRA folder and load PNG/JPG/JPEG/WEBP chakra images.
+- Overlay chakra on the plot.
+- Plot degree automatically sets chakra rotation.
+- Chakra can be moved, rotated and zoomed with touch gestures.
+- Each chakra gets its own PDF page with the plot as the background and chakra overlaid.
+- PDF first page contains client details and plot.
+- Footer: Ghanshyam Lohani.
 
-## Boundary editing
-- Selecting a plot photo automatically creates four starting corner points.
-- There is no ADD-DOT mode, so tapping empty photo space cannot create accidental dots.
-- EDIT / MOVE drags existing points.
-- DELETE removes an existing point.
-- AUTO CORNERS resets the four starting points.
-- The polygon center is recalculated from the edited points and is used for Chakra placement.
-
-The automatic points are starting corner positions; for irregular plots, adjust them with EDIT / MOVE to match the actual plot corners.
+## GitHub Actions
+Upload this folder to GitHub and run:
+Actions -> Build Android APK -> Run workflow

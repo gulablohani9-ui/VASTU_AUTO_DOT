@@ -1,17 +1,20 @@
-name: vastu_plot_chakra_pdf
-description: Vastu plot photo boundary editor with CHKRA overlays and PDF report.
+name: vastu_plot_chakra_irregular
+description: Irregular plot boundary and chakra overlay PDF app.
 publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.4.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
   image_picker: ^1.1.2
-  path: ^1.9.0
+  file_picker: ^8.1.4
   pdf: ^3.11.1
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  image: ^4.2.0
 
 dev_dependencies:
   flutter_test:
