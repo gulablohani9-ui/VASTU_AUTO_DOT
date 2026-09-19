@@ -173,6 +173,26 @@ class _HomePageState extends State<HomePage> {
     return result;
   }
 
+  // NAYA FUNCTION: Dots ko automatically clockwise set karne ke liye taaki line kate na
+  void _sortPointsClockwise() {
+    if (points.length < 3) return;
+    double cx = 0;
+    double cy = 0;
+    for (final BoundaryPoint p in points) {
+      cx += p.position.dx;
+      cy += p.position.dy;
+    }
+    cx /= points.length;
+    cy /= points.length;
+    final Offset center = Offset(cx, cy);
+
+    points.sort((BoundaryPoint a, BoundaryPoint b) {
+      final double angleA = math.atan2(a.position.dy - center.dy, a.position.dx - center.dx);
+      final double angleB = math.atan2(b.position.dy - center.dy, b.position.dx - center.dx);
+      return angleA.compareTo(angleB);
+    });
+  }
+
   Offset polygonCentroid() {
     if (points.isEmpty) return const Offset(.5, .5);
     if (points.length < 3) {
@@ -226,7 +246,7 @@ class _HomePageState extends State<HomePage> {
     if (index < 0 || index >= points.length) return;
     setState(() {
       points.removeAt(index);
-      selectedPoint = points.isEmpty ? -1 : math.min(index, points.length - 1);
+      selectedPoint = -1; // Selection clear kar rahe hain delete ke baad
       final Offset c = polygonCentroid();
       for (final ChakraTransform t in transforms) t.center = c;
     });
@@ -324,7 +344,8 @@ class _HomePageState extends State<HomePage> {
               onAdd: (Offset newPoint) {
                 setState(() {
                   points.add(BoundaryPoint(newPoint));
-                  selectedPoint = points.length - 1;
+                  _sortPointsClockwise(); // UPDATED: Dot lagate hi line sahi shape le legi
+                  selectedPoint = -1;
                 });
               },
             ),
