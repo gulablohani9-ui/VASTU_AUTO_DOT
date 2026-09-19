@@ -1,0 +1,1 @@
+# VASTU_AUTO_DOT
